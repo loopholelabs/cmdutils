@@ -64,22 +64,21 @@ func (v *Version) Format(cli string) string {
 	return fmt.Sprintf("%s version %s (build date: %s git commit: %s go version: %s build platform: %s)\n", cli, v.Version(), v.BuildDate(), v.GitCommit(), v.GoVersion(), v.Platform())
 }
 
-// Cmd encapsulates the commands for showing a version
-func Cmd[T config.Config](ch *cmdutils.Helper[T], version Version, cli string) *cobra.Command {
+func (v *Version) Cmd(ch *cmdutils.Helper[config.Config], cli string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "version",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if ch.Printer.Format() == printer.Human {
-				ch.Printer.Println(version.Format(cli))
+				ch.Printer.Println(v.Format(cli))
 				return nil
 			}
 			v := map[string]string{
-				"version":    version.Version(),
-				"commit":     version.GitCommit(),
-				"build_date": version.BuildDate(),
-				"go_version": version.GoVersion(),
-				"platform":   version.Platform(),
+				"version":    v.Version(),
+				"commit":     v.GitCommit(),
+				"build_date": v.BuildDate(),
+				"go_version": v.GoVersion(),
+				"platform":   v.Platform(),
 			}
 			return ch.Printer.PrintResource(v)
 		},

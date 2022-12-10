@@ -38,7 +38,7 @@ type SetupCommand[T config.Config] func(cmd *cobra.Command, ch *cmdutils.Helper[
 type Command[T config.Config] struct {
 	cli            string
 	command        *cobra.Command
-	version        version.Version
+	version        *version.Version
 	new            config.New[T]
 	config         T
 	setupFunctions []SetupCommand[T]
@@ -49,7 +49,7 @@ var (
 	replacer = strings.NewReplacer("-", "_", ".", "_")
 )
 
-func New[T config.Config](cli string, short string, long string, noargs bool, version version.Version, newConfig config.New[T], setupFunctions []SetupCommand[T]) *Command[T] {
+func New[T config.Config](cli string, short string, long string, noargs bool, version *version.Version, newConfig config.New[T], setupFunctions []SetupCommand[T]) *Command[T] {
 	c := &cobra.Command{
 		Use:              cli,
 		Short:            short,
@@ -119,7 +119,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	c.command.SilenceUsage = true
 	c.command.SilenceErrors = true
 
-	v := version.Format(c.version, c.cli)
+	v := c.version.Format(c.cli)
 	c.command.SetVersionTemplate(v)
 	c.command.Version = v
 	c.command.Flags().Bool("version", false, fmt.Sprintf("Show %s version", c.cli))
