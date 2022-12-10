@@ -24,20 +24,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Version interface {
-	GitCommit() string
-	GoVersion() string
-	Platform() string
-	Version() string
-	BuildDate() string
+type Version struct {
+	gitCommit string
+	goVersion string
+	platform  string
+	version   string
+	buildDate string
 }
 
-func Format(version Version, cli string) string {
-	if version.GitCommit() == "" && version.GoVersion() == "" && version.Platform() == "" || version.Version() == "" || version.BuildDate() == "" {
+func New(gitCommit string, goVersion string, platform string, version string, buildDate string) *Version {
+	return new(Version)
+}
+
+func (v *Version) GitCommit() string {
+	return v.gitCommit
+}
+
+func (v *Version) GoVersion() string {
+	return v.goVersion
+}
+
+func (v *Version) Platform() string {
+	return v.platform
+}
+
+func (v *Version) Version() string {
+	return v.version
+}
+
+func (v *Version) BuildDate() string {
+	return v.buildDate
+}
+
+func (v *Version) Format(cli string) string {
+	if v.GitCommit() == "" && v.GoVersion() == "" && v.Platform() == "" || v.Version() == "" || v.BuildDate() == "" {
 		return fmt.Sprintf("%s version (built from source)\n", cli)
 	}
 
-	return fmt.Sprintf("%s version %s (build date: %s git commit: %s go version: %s build platform: %s)\n", cli, version.Version(), version.BuildDate(), version.GitCommit(), version.GoVersion(), version.Platform())
+	return fmt.Sprintf("%s version %s (build date: %s git commit: %s go version: %s build platform: %s)\n", cli, v.Version(), v.BuildDate(), v.GitCommit(), v.GoVersion(), v.Platform())
 }
 
 // Cmd encapsulates the commands for showing a version
@@ -47,7 +71,7 @@ func Cmd[T config.Config](ch *cmdutils.Helper[T], version Version, cli string) *
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if ch.Printer.Format() == printer.Human {
-				ch.Printer.Println(Format(version, cli))
+				ch.Printer.Println(version.Format(cli))
 				return nil
 			}
 			v := map[string]string{
