@@ -23,7 +23,7 @@ import (
 type New[T Config] func() T
 
 type Config interface {
-	RootFlags(cmd *pflag.FlagSet)
+	RootFlags(flags *pflag.FlagSet)
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
 	DefaultConfigPath() (string, error)
