@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Version struct {
+type Version[T config.Config] struct {
 	gitCommit string
 	goVersion string
 	platform  string
@@ -32,31 +32,31 @@ type Version struct {
 	buildDate string
 }
 
-func New(gitCommit string, goVersion string, platform string, version string, buildDate string) *Version {
-	return new(Version)
+func New[T config.Config](gitCommit string, goVersion string, platform string, version string, buildDate string) *Version[T] {
+	return new(Version[T])
 }
 
-func (v *Version) GitCommit() string {
+func (v *Version[T]) GitCommit() string {
 	return v.gitCommit
 }
 
-func (v *Version) GoVersion() string {
+func (v *Version[T]) GoVersion() string {
 	return v.goVersion
 }
 
-func (v *Version) Platform() string {
+func (v *Version[T]) Platform() string {
 	return v.platform
 }
 
-func (v *Version) Version() string {
+func (v *Version[T]) Version() string {
 	return v.version
 }
 
-func (v *Version) BuildDate() string {
+func (v *Version[T]) BuildDate() string {
 	return v.buildDate
 }
 
-func (v *Version) Format(cli string) string {
+func (v *Version[T]) Format(cli string) string {
 	if v.GitCommit() == "" && v.GoVersion() == "" && v.Platform() == "" || v.Version() == "" || v.BuildDate() == "" {
 		return fmt.Sprintf("%s version (built from source)\n", cli)
 	}
@@ -64,7 +64,7 @@ func (v *Version) Format(cli string) string {
 	return fmt.Sprintf("%s version %s (build date: %s git commit: %s go version: %s build platform: %s)\n", cli, v.Version(), v.BuildDate(), v.GitCommit(), v.GoVersion(), v.Platform())
 }
 
-func (v *Version) Cmd(ch *cmdutils.Helper[config.Config], cli string) *cobra.Command {
+func (v *Version[T]) Cmd(ch *cmdutils.Helper[T], cli string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "version",
 		Hidden: true,
