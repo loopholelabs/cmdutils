@@ -24,5 +24,7 @@ type New[T Config] func() T
 
 type Config interface {
 	RootFlags(cmd *pflag.FlagSet)
-	Dir() (string, error)
+	DefaultConfigDir() (string, error)
+	DefaultConfigFile() string
+	DefaultConfigPath() (string, error)
 }

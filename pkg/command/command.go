@@ -108,22 +108,25 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
 	cobra.OnInitialize(c.initConfig)
 
-	c.command.PersistentFlags().StringVar(&cfgFile, "config",
-		"", fmt.Sprintf("Config file (default is $HOME/.config/%s/%s.yml)", c.cli, c.cli))
+	c.config = c.new()
+
+	configPath, err := c.config.DefaultConfigPath()
+	if err != nil {
+		return err
+	}
+
+	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.SilenceUsage = true
 	c.command.SilenceErrors = true
 
 	v := version.Format(c.version, c.cli)
 	c.command.SetVersionTemplate(v)
 	c.command.Version = v
-	c.command.Flags().Bool("version", false, "Show sentry version")
-
-	c.config = c.new()
+	c.command.Flags().Bool("version", false, fmt.Sprintf("Show %s version", c.cli))
 
 	c.config.RootFlags(c.command.PersistentFlags())
 
-	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f",
-		"Show output in a specific format. Possible values: [human, json, csv]")
+	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json, csv]")
 	if err := viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
 		return err
 	}
@@ -162,15 +165,20 @@ func (c *Command[T]) initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		defaultConfigDir, err := c.config.Dir()
+		configDir, err := c.config.DefaultConfigDir()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(cmdutils.FatalErrExitCode)
 		}
 
-		viper.AddConfigPath(defaultConfigDir)
-		viper.SetConfigName(c.cli)
-		viper.SetConfigType("yml")
+		viper.AddConfigPath(configDir)
+
+		configFile := c.config.DefaultConfigFile()
+		configFileSplit := strings.Split(configFile, ".")
+		viper.SetConfigName(configFileSplit[0])
+		if len(configFileSplit) > 1 {
+			viper.SetConfigType(configFileSplit[1])
+		}
 	}
 
 	viper.SetEnvPrefix(strings.ToUpper(c.cli))
