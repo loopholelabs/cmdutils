@@ -17,6 +17,7 @@
 package config
 
 import (
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -24,6 +25,7 @@ type New[T Config] func() T
 
 type Config interface {
 	RootFlags(flags *pflag.FlagSet)
+	CmdOverrides(cmd *cobra.Command) error
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
 	DefaultConfigPath() (string, error)

@@ -36,12 +36,12 @@ import (
 type SetupCommand[T config.Config] func(cmd *cobra.Command, ch *cmdutils.Helper[T])
 
 type Command[T config.Config] struct {
-	cli            string
-	command        *cobra.Command
-	version        *version.Version[T]
-	new            config.New[T]
-	config         T
-	setupFunctions []SetupCommand[T]
+	cli           string
+	command       *cobra.Command
+	version       *version.Version[T]
+	new           config.New[T]
+	config        T
+	setupCommands []SetupCommand[T]
 }
 
 var (
@@ -49,7 +49,7 @@ var (
 	replacer = strings.NewReplacer("-", "_", ".", "_")
 )
 
-func New[T config.Config](cli string, short string, long string, noargs bool, version *version.Version[T], newConfig config.New[T], setupFunctions []SetupCommand[T]) *Command[T] {
+func New[T config.Config](cli string, short string, long string, noargs bool, version *version.Version[T], newConfig config.New[T], setupCommands []SetupCommand[T]) *Command[T] {
 	c := &cobra.Command{
 		Use:              cli,
 		Short:            short,
@@ -60,11 +60,11 @@ func New[T config.Config](cli string, short string, long string, noargs bool, ve
 		c.Args = cobra.NoArgs
 	}
 	return &Command[T]{
-		cli:            cli,
-		command:        c,
-		version:        version,
-		new:            newConfig,
-		setupFunctions: setupFunctions,
+		cli:           cli,
+		command:       c,
+		version:       version,
+		new:           newConfig,
+		setupCommands: setupCommands,
 	}
 }
 
@@ -126,8 +126,13 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.config.RootFlags(c.command.PersistentFlags())
 
+	err = c.config.CmdOverrides(c.command)
+	if err != nil {
+		return err
+	}
+
 	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json, csv]")
-	if err := viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
+	if err = viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
 		return err
 	}
 	_ = c.command.RegisterFlagCompletionFunc("format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -152,7 +157,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.command.AddCommand(c.version.Cmd(ch, c.cli))
 
-	for _, setup := range c.setupFunctions {
+	for _, setup := range c.setupCommands {
 		setup(c.command, ch)
 	}
 
