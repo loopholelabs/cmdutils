@@ -39,13 +39,14 @@ type Command[T config.Config] struct {
 	cli           string
 	command       *cobra.Command
 	version       *version.Version[T]
-	new           config.New[T]
+	newConfig     config.New[T]
 	config        T
 	setupCommands []SetupCommand[T]
 }
 
 var (
 	cfgFile  string
+	logFile  string
 	replacer = strings.NewReplacer("-", "_", ".", "_")
 )
 
@@ -63,7 +64,7 @@ func New[T config.Config](cli string, short string, long string, noargs bool, ve
 		cli:           cli,
 		command:       c,
 		version:       version,
-		new:           newConfig,
+		newConfig:     newConfig,
 		setupCommands: setupCommands,
 	}
 }
@@ -108,14 +109,21 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
 	cobra.OnInitialize(c.initConfig)
 
-	c.config = c.new()
+	c.config = c.newConfig()
 
 	configPath, err := c.config.DefaultConfigPath()
 	if err != nil {
 		return err
 	}
 
+	logPath, err := c.config.DefaultLogPath()
+	if err != nil {
+		return err
+	}
+
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
+	c.command.PersistentFlags().StringVar(&logFile, "log", "", fmt.Sprintf("Log file (default is %s)", logPath))
+
 	c.command.SilenceUsage = true
 	c.command.SilenceErrors = true
 
@@ -199,21 +207,21 @@ func (c *Command[T]) initConfig() {
 		}
 	}
 
-	postInitCommands(c.command.Commands())
+	c.postInitCommands(c.command.Commands())
 }
 
 // Hacky fix for getting Cobra required flags and Viper playing well together.
 // See: https://github.com/spf13/viper/issues/397
-func postInitCommands(commands []*cobra.Command) {
+func (c *Command[T]) postInitCommands(commands []*cobra.Command) {
 	for _, cmd := range commands {
-		presetRequiredFlags(cmd)
+		c.presetRequiredFlags(cmd)
 		if cmd.HasSubCommands() {
-			postInitCommands(cmd.Commands())
+			c.postInitCommands(cmd.Commands())
 		}
 	}
 }
 
-func presetRequiredFlags(cmd *cobra.Command) {
+func (c *Command[T]) presetRequiredFlags(cmd *cobra.Command) {
 	err := viper.BindPFlags(cmd.Flags())
 	if err != nil {
 		log.Fatalf("error binding flags: %v", err)
@@ -227,4 +235,7 @@ func presetRequiredFlags(cmd *cobra.Command) {
 			}
 		}
 	})
+
+	c.config.SetConfigFile(viper.ConfigFileUsed())
+	c.config.SetLogFile(logFile)
 }

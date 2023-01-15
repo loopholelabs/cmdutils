@@ -29,4 +29,8 @@ type Config interface {
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
 	DefaultConfigPath() (string, error)
+	DefaultLogFile() string
+	DefaultLogPath() (string, error)
+	SetLogFile(logFile string)
+	SetConfigFile(configFile string)
 }
