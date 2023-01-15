@@ -32,8 +32,14 @@ type Version[T config.Config] struct {
 	buildDate string
 }
 
-func New[T config.Config]() *Version[T] {
-	return new(Version[T])
+func New[T config.Config](gitCommit string, goVersion string, platform string, version string, buildDate string) *Version[T] {
+	return &Version[T]{
+		gitCommit: gitCommit,
+		goVersion: goVersion,
+		platform:  platform,
+		version:   version,
+		buildDate: buildDate,
+	}
 }
 
 func (v *Version[T]) GitCommit() string {
