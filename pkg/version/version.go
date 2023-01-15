@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ type Version[T config.Config] struct {
 	buildDate string
 }
 
-func New[T config.Config](gitCommit string, goVersion string, platform string, version string, buildDate string) *Version[T] {
+func New[T config.Config]() *Version[T] {
 	return new(Version[T])
 }
 
