@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ type New[T Config] func() T
 
 type Config interface {
 	RootFlags(flags *pflag.FlagSet)
-	CmdOverrides(cmd *cobra.Command) error
+	CmdRequired(cmd *cobra.Command) error
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
 	DefaultConfigPath() (string, error)

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -126,11 +126,6 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.config.RootFlags(c.command.PersistentFlags())
 
-	err = c.config.CmdOverrides(c.command)
-	if err != nil {
-		return err
-	}
-
 	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json, csv]")
 	if err = viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
 		return err
@@ -162,6 +157,11 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	}
 
 	return c.command.ExecuteContext(ctx)
+}
+
+// RequiredFlags is meant to be used by a pre-run function to mark flags as required
+func (c *Command[T]) RequiredFlags() error {
+	return c.config.CmdRequired(c.command)
 }
 
 // initConfig reads in config file and ENV variables if set.
