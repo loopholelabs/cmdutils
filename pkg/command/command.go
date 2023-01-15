@@ -156,12 +156,11 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		setup(c.command, ch)
 	}
 
-	return c.command.ExecuteContext(ctx)
-}
+	c.command.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		return c.config.CmdRequired(cmd)
+	}
 
-// RequiredFlags is meant to be used by a pre-run function to mark flags as required
-func (c *Command[T]) RequiredFlags() error {
-	return c.config.CmdRequired(c.command)
+	return c.command.ExecuteContext(ctx)
 }
 
 // initConfig reads in config file and ENV variables if set.
