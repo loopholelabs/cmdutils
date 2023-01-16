@@ -73,7 +73,7 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 	var format printer.Format
 	var debug bool
 
-	devEnv := fmt.Sprintf("%s_DISABLE_DEV_WARNING", replacer.Replace(c.cli))
+	devEnv := fmt.Sprintf("%s_DISABLE_DEV_WARNING", strings.ToUpper(replacer.Replace(c.cli)))
 	devWarning := fmt.Sprintf("!! WARNING: You are using a self-compiled binary which is not officially supported.\n!! To dismiss this warning, set %s=true\n\n", devEnv)
 
 	if _, ok := os.LookupEnv(devEnv); !ok {
