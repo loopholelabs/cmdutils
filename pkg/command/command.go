@@ -164,10 +164,6 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		setup(c.command, ch)
 	}
 
-	c.command.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
-		return c.config.CmdRequired(cmd)
-	}
-
 	return c.command.ExecuteContext(ctx)
 }
 
