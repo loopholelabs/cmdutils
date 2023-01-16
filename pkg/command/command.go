@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -204,6 +205,29 @@ func (c *Command[T]) initConfig() {
 	}
 
 	c.postInitCommands(c.command.Commands())
+
+	if c.config.GetConfigFile() != "" {
+		err := os.MkdirAll(filepath.Dir(c.config.GetConfigFile()), 0700)
+		if err != nil {
+			if !os.IsExist(err) {
+				fmt.Println(err)
+				os.Exit(cmdutils.FatalErrExitCode)
+			}
+		}
+	}
+
+	if c.config.GetLogFile() != "" {
+		err := os.MkdirAll(filepath.Dir(c.config.GetLogFile()), 0700)
+		if err != nil {
+			if !os.IsExist(err) {
+				fmt.Println(err)
+				os.Exit(cmdutils.FatalErrExitCode)
+			}
+		}
+	} else {
+		fmt.Println("No log file specified")
+		os.Exit(cmdutils.FatalErrExitCode)
+	}
 }
 
 // Hacky fix for getting Cobra required flags and Viper playing well together.
