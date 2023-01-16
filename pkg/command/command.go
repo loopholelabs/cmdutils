@@ -122,7 +122,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		return err
 	}
 
-	c.command.PersistentFlags().StringVar(&cfgFile, "config", configPath, fmt.Sprintf("Config file (default is %s)", configPath))
+	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, fmt.Sprintf("Log file (default is %s)", logPath))
 
 	c.command.SilenceUsage = true
