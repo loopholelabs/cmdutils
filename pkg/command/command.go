@@ -133,7 +133,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	c.command.Version = v
 	c.command.Flags().Bool("version", false, fmt.Sprintf("Show %s version", c.cli))
 
-	c.config.RootFlags(c.command.PersistentFlags())
+	c.config.RootPersistentFlags(c.command.PersistentFlags())
 
 	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json, csv]")
 	if err = viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
