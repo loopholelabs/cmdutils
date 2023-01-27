@@ -26,6 +26,7 @@ type New[T Config] func() T
 type Config interface {
 	RootPersistentFlags(flags *pflag.FlagSet)
 	GlobalRequiredFlags(cmd *cobra.Command) error
+	Validate() error
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
 	DefaultConfigPath() (string, error)
