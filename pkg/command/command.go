@@ -108,8 +108,6 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 // runCmd adds all child commands to the root command, sets flags
 // appropriately, and runs the root command.
 func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
-	cobra.OnInitialize(c.initConfig)
-
 	c.config = c.newConfig()
 
 	configPath, err := c.config.DefaultConfigPath()
@@ -124,6 +122,8 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log File")
+
+	cobra.OnInitialize(c.initConfig)
 
 	c.command.SilenceUsage = true
 	c.command.SilenceErrors = true
@@ -144,7 +144,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	})
 
 	c.command.PersistentFlags().BoolVar(debug, "debug", false, "Enable debug mode")
-	if err := viper.BindPFlag("debug", c.command.PersistentFlags().Lookup("debug")); err != nil {
+	if err = viper.BindPFlag("debug", c.command.PersistentFlags().Lookup("debug")); err != nil {
 		return err
 	}
 
@@ -155,7 +155,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	ch.SetDebug(debug)
 
 	c.command.PersistentFlags().BoolVar(&color.NoColor, "no-color", false, "Disable color output")
-	if err := viper.BindPFlag("no-color", c.command.PersistentFlags().Lookup("no-color")); err != nil {
+	if err = viper.BindPFlag("no-color", c.command.PersistentFlags().Lookup("no-color")); err != nil {
 		return err
 	}
 
