@@ -106,23 +106,23 @@ func NewPrinter(format *Format) *Printer {
 
 // Printf is a convenience method to Printf to the defined output.
 func (p *Printer) Printf(format string, i ...interface{}) {
-	_, _ = fmt.Fprintf(p.out(), format, i...)
+	_, _ = fmt.Fprintf(p.Out(), format, i...)
 }
 
 // Println is a convenience method to Println to the defined output.
 func (p *Printer) Println(i ...interface{}) {
-	_, _ = fmt.Fprintln(p.out(), i...)
+	_, _ = fmt.Fprintln(p.Out(), i...)
 }
 
 // Print is a convenience method to Print to the defined output.
 func (p *Printer) Print(i ...interface{}) {
-	_, _ = fmt.Fprint(p.out(), i...)
+	_, _ = fmt.Fprint(p.Out(), i...)
 }
 
-// out defines the output to write human readable text. If format is not set to
-// human, out returns io.Discard, which means that any output will be
+// Out defines the output to write human-readable text. If format is not set to
+// human, Out returns io.Discard, which means that any output will be
 // discarded
-func (p *Printer) out() io.Writer {
+func (p *Printer) Out() io.Writer {
 	if p.humanOut != nil {
 		return p.humanOut
 	}
@@ -139,11 +139,11 @@ func (p *Printer) out() io.Writer {
 // spinner
 func (p *Printer) PrintProgress(message string) func() {
 	if !IsTTY {
-		_, _ = fmt.Fprintln(p.out(), message)
+		_, _ = fmt.Fprintln(p.Out(), message)
 		return func() {}
 	}
 
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(p.out()))
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(p.Out()))
 	s.Suffix = fmt.Sprintf(" %s", message)
 
 	_ = s.Color("bold", "green")
@@ -154,7 +154,7 @@ func (p *Printer) PrintProgress(message string) func() {
 		// NOTE(fatih) the spinner library doesn't clear the line properly,
 		// hence remove it ourselves. This line should be removed once it's
 		// fixed in upstream.  https://github.com/briandowns/spinner/pull/117
-		_, _ = fmt.Fprint(p.out(), "\r\033[2K")
+		_, _ = fmt.Fprint(p.Out(), "\r\033[2K")
 	}
 }
 
