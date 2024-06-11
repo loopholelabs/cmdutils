@@ -20,18 +20,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/loopholelabs/cmdutils"
 	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/loopholelabs/cmdutils/pkg/printer"
 	"github.com/loopholelabs/cmdutils/pkg/version"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 type SetupCommand[T config.Config] func(cmd *cobra.Command, ch *cmdutils.Helper[T])
@@ -206,6 +208,10 @@ func (c *Command[T]) initConfig() error {
 			// existing.
 			return fmt.Errorf("failed to read configuration: %w", err)
 		}
+	}
+	err := viper.Unmarshal(c.config, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
 	c.postInitCommands(c.command.Commands())
