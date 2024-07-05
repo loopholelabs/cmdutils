@@ -20,6 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/loopholelabs/cmdutils"
 	"github.com/loopholelabs/cmdutils/pkg/config"
@@ -28,10 +34,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 type SetupCommand[T config.Config] func(cmd *cobra.Command, ch *cmdutils.Helper[T])
@@ -110,15 +112,13 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
 	c.config = c.newConfig()
 
-	configPath, err := c.config.DefaultConfigPath()
+	configDir, err := c.config.DefaultConfigDir()
 	if err != nil {
 		return err
 	}
 
-	logPath, err := c.config.DefaultLogPath()
-	if err != nil {
-		return err
-	}
+	configPath := path.Join(configDir, c.config.DefaultConfigFile())
+	logPath := path.Join(configDir, c.config.DefaultLogFile())
 
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log File")
