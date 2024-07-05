@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/gocarina/gocsv v0.0.0-20230616125104-99d496ca653d
 	github.com/lensesio/tableprinter v0.0.0-20201125135848-89e81fc956e7
-	github.com/mattn/go-isatty v0.0.19
+	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
