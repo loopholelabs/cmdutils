@@ -1,0 +1,2 @@
+- Shivansh Vij <shivanshvij@loopholelabs.io> @shivanshvij
+- Luiz Aoqui <luizaoqui@loopholelabs.io> @lfga29
