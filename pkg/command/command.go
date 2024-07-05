@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -112,15 +113,13 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
 	c.config = c.newConfig()
 
-	configPath, err := c.config.DefaultConfigPath()
+	configDir, err := c.config.DefaultConfigDir()
 	if err != nil {
 		return err
 	}
 
-	logPath, err := c.config.DefaultLogPath()
-	if err != nil {
-		return err
-	}
+	configPath := path.Join(configDir, c.config.DefaultConfigFile())
+	logPath := path.Join(configDir, c.config.DefaultLogFile())
 
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log File")
