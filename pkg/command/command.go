@@ -31,6 +31,7 @@ import (
 	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/loopholelabs/cmdutils/pkg/printer"
 	"github.com/loopholelabs/cmdutils/pkg/version"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -123,7 +124,13 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log File")
 
-	cobra.OnInitialize(c.initConfig)
+	cobra.OnInitialize(func() {
+		err := c.initConfig()
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+			os.Exit(cmdutils.FatalErrExitCode)
+		}
+	})
 
 	c.command.SilenceUsage = true
 	c.command.SilenceErrors = true
@@ -169,15 +176,14 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 }
 
 // initConfig reads in config file and ENV variables if set.
-func (c *Command[T]) initConfig() {
+func (c *Command[T]) initConfig() error {
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
 		configDir, err := c.config.DefaultConfigDir()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(cmdutils.FatalErrExitCode)
+			return fmt.Errorf("failed to read default configuration directory: %w", err)
 		}
 
 		viper.AddConfigPath(configDir)
@@ -199,9 +205,12 @@ func (c *Command[T]) initConfig() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Only handle errors when it's something unrelated to the config file not
 			// existing.
-			fmt.Println(err)
-			os.Exit(cmdutils.FatalErrExitCode)
+			return fmt.Errorf("failed to read configuration: %w", err)
 		}
+	}
+	err := viper.Unmarshal(c.config, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
 	c.postInitCommands(c.command.Commands())
@@ -210,8 +219,7 @@ func (c *Command[T]) initConfig() {
 		err := os.MkdirAll(filepath.Dir(c.config.GetConfigFile()), 0700)
 		if err != nil {
 			if !os.IsExist(err) {
-				fmt.Println(err)
-				os.Exit(cmdutils.FatalErrExitCode)
+				return fmt.Errorf("failed to create configuration directory: %w", err)
 			}
 		}
 	}
@@ -220,14 +228,14 @@ func (c *Command[T]) initConfig() {
 		err := os.MkdirAll(filepath.Dir(c.config.GetLogFile()), 0700)
 		if err != nil {
 			if !os.IsExist(err) {
-				fmt.Println(err)
-				os.Exit(cmdutils.FatalErrExitCode)
+				return fmt.Errorf("failed to create log directory: %w", err)
 			}
 		}
 	} else {
-		fmt.Println("No log file specified")
-		os.Exit(cmdutils.FatalErrExitCode)
+		return errors.New("No log file specified")
 	}
+
+	return nil
 }
 
 // Hacky fix for getting Cobra required flags and Viper playing well together.
