@@ -118,8 +118,13 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		return err
 	}
 
+	logDir, err := c.config.DefaultLogDir()
+	if err != nil {
+		return err
+	}
+
 	configPath := path.Join(configDir, c.config.DefaultConfigFile())
-	logPath := path.Join(configDir, c.config.DefaultLogFile())
+	logPath := path.Join(logDir, c.config.DefaultLogFile())
 
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("Config file (default is %s)", configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log File")
