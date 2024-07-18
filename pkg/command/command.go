@@ -32,6 +32,7 @@ import (
 	"github.com/loopholelabs/cmdutils/pkg/printer"
 	"github.com/loopholelabs/cmdutils/pkg/version"
 	"github.com/loopholelabs/logging"
+	"github.com/loopholelabs/logging/types"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -148,6 +149,18 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	}
 
 	cobra.OnInitialize(func() {
+		err := c.initConfig()
+		if err != nil {
+			switch *format {
+			case printer.JSON:
+				_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+			default:
+				_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			}
+
+			os.Exit(cmdutils.FatalErrExitCode)
+		}
+
 		ch.SetDebug(debug)
 
 		ch.Printer = printer.NewPrinter(format)
@@ -184,16 +197,10 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 			ch.Logger = logging.New(logging.Slog, "", logOutput)
 		}
 
-		err := c.initConfig()
-		if err != nil {
-			switch *format {
-			case printer.JSON:
-				_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
-			default:
-				_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-			}
-
-			os.Exit(cmdutils.FatalErrExitCode)
+		if ch.Debug() {
+			ch.Logger.SetLevel(types.TraceLevel)
+		} else {
+			ch.Logger.SetLevel(types.InfoLevel)
 		}
 	})
 
