@@ -21,20 +21,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
-	"github.com/gocarina/gocsv"
-	"github.com/lensesio/tableprinter"
-	"github.com/mattn/go-isatty"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
+	"github.com/lensesio/tableprinter"
+	"github.com/mattn/go-isatty"
 )
 
 var IsTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+
+var (
+	ErrUnknownPrinterFormat = errors.New("unknown printer format")
+)
 
 // Format defines the option output format of a resource.
 type Format int
@@ -44,7 +48,6 @@ const (
 	// a single line, depending on the resource implementation.
 	Human Format = iota
 	JSON
-	CSV
 )
 
 // NewFormatValue is used to define a flag that can be used to define a custom
@@ -60,8 +63,6 @@ func (f *Format) String() string {
 		return "human"
 	case JSON:
 		return "json"
-	case CSV:
-		return "csv"
 	}
 
 	return "unknown format"
@@ -74,11 +75,9 @@ func (f *Format) Set(s string) error {
 		v = Human
 	case "json":
 		v = JSON
-	case "csv":
-		v = CSV
 	default:
 		return fmt.Errorf("failed to parse Format: %q. Valid values: %+v",
-			s, []string{"human", "json", "csv"})
+			s, []string{"human", "json"})
 	}
 
 	*f = v
@@ -190,24 +189,9 @@ func (p *Printer) PrintResource(v interface{}) error {
 		return nil
 	case JSON:
 		return p.PrintJSON(v)
-	case CSV:
-		type csvvaluer interface {
-			MarshalCSVValue() interface{}
-		}
-
-		if c, ok := v.(csvvaluer); ok {
-			v = c.MarshalCSVValue()
-		}
-
-		buf, err := gocsv.MarshalString(v)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintln(out, buf)
-		return nil
 	}
 
-	return fmt.Errorf("unknown printer.Format: %T", *p.format)
+	return errors.Join(ErrUnknownPrinterFormat, fmt.Errorf("unknown printer.Format: %T", *p.format))
 }
 
 func (p *Printer) ConfirmCommand(confirmationName, commandShortName, confirmFailedName string) error {

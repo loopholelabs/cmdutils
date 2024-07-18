@@ -147,12 +147,12 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.config.RootPersistentFlags(c.command.PersistentFlags())
 
-	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json, csv]")
+	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json]")
 	if err = viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
 		return err
 	}
 	_ = c.command.RegisterFlagCompletionFunc("format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"human", "json", "csv"}, cobra.ShellCompDirectiveDefault
+		return []string{"human", "json"}, cobra.ShellCompDirectiveDefault
 	})
 
 	c.command.PersistentFlags().BoolVar(debug, "debug", false, "Enable debug mode")
