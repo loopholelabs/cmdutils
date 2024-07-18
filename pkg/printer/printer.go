@@ -36,10 +36,6 @@ import (
 
 var IsTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
-var (
-	ErrUnknownPrinterFormat = errors.New("unknown printer format")
-)
-
 // Format defines the option output format of a resource.
 type Format int
 
@@ -191,7 +187,7 @@ func (p *Printer) PrintResource(v interface{}) error {
 		return p.PrintJSON(v)
 	}
 
-	return errors.Join(ErrUnknownPrinterFormat, fmt.Errorf("unknown printer.Format: %T", *p.format))
+	return fmt.Errorf("unknown printer.Format: %T", *p.format)
 }
 
 func (p *Printer) ConfirmCommand(confirmationName, commandShortName, confirmFailedName string) error {

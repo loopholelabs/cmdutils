@@ -38,6 +38,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+type CommandType int
+
+const (
+	Interactive CommandType = iota
+	Noninteractive
+)
+
 type SetupCommand[T config.Config] func(cmd *cobra.Command, ch *cmdutils.Helper[T])
 
 type Command[T config.Config] struct {
@@ -75,7 +82,7 @@ func New[T config.Config](cli string, short string, long string, noargs bool, ve
 	}
 }
 
-func (c *Command[T]) Execute(ctx context.Context) int {
+func (c *Command[T]) Execute(ctx context.Context, commandType CommandType) int {
 	var format printer.Format
 	var debug bool
 
@@ -88,7 +95,7 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 		}
 	}
 
-	err := c.runCmd(ctx, &format, &debug)
+	err := c.runCmd(ctx, &format, &debug, commandType)
 	if err == nil {
 		return 0
 	}
@@ -114,7 +121,7 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 
 // runCmd adds all child commands to the root command, sets flags
 // appropriately, and runs the root command.
-func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool) error {
+func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool, commandType CommandType) error {
 	c.config = c.newConfig()
 
 	configDir, err := c.config.DefaultConfigDir()
@@ -128,7 +135,10 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	}
 
 	configPath := path.Join(configDir, c.config.DefaultConfigFile())
-	logPath := path.Join(logDir, c.config.DefaultLogFile())
+	logPath := ""
+	if commandType == Interactive {
+		logPath = path.Join(logDir, c.config.DefaultLogFile())
+	}
 
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf(`Config file (default "%s")`, configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log file")
@@ -143,7 +153,18 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		ch.Printer = printer.NewPrinter(format)
 
 		if strings.TrimSpace(logFile) != "" {
-			logOutput, err = os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+			if err := os.MkdirAll(filepath.Dir(logFile), 0700); err != nil {
+				switch *format {
+				case printer.JSON:
+					_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+				default:
+					_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				}
+
+				os.Exit(cmdutils.FatalErrExitCode)
+			}
+
+			logOutput, err = os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0700)
 			if err != nil {
 				switch *format {
 				case printer.JSON:
@@ -152,7 +173,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 					_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 				}
 
-				return
+				os.Exit(cmdutils.FatalErrExitCode)
 			}
 		}
 
@@ -165,7 +186,13 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 		err := c.initConfig()
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			switch *format {
+			case printer.JSON:
+				_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+			default:
+				_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			}
+
 			os.Exit(cmdutils.FatalErrExitCode)
 		}
 	})
@@ -254,17 +281,6 @@ func (c *Command[T]) initConfig() error {
 				return fmt.Errorf("failed to create configuration directory: %w", err)
 			}
 		}
-	}
-
-	if c.config.GetLogFile() != "" {
-		err := os.MkdirAll(filepath.Dir(c.config.GetLogFile()), 0700)
-		if err != nil {
-			if !os.IsExist(err) {
-				return fmt.Errorf("failed to create log directory: %w", err)
-			}
-		}
-	} else {
-		return errors.New("No log file specified")
 	}
 
 	return nil
