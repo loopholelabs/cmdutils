@@ -31,6 +31,7 @@ import (
 	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/loopholelabs/cmdutils/pkg/printer"
 	"github.com/loopholelabs/cmdutils/pkg/version"
+	"github.com/loopholelabs/logging"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -49,9 +50,10 @@ type Command[T config.Config] struct {
 }
 
 var (
-	cfgFile  string
-	logFile  string
-	replacer = strings.NewReplacer("-", "_", ".", "_")
+	cfgFile   string
+	logFile   string
+	logOutput = os.Stderr
+	replacer  = strings.NewReplacer("-", "_", ".", "_")
 )
 
 func New[T config.Config](cli string, short string, long string, noargs bool, version *version.Version[T], newConfig config.New[T], setupCommands []SetupCommand[T]) *Command[T] {
@@ -99,6 +101,8 @@ func (c *Command[T]) Execute(ctx context.Context) int {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 	}
 
+	_ = logOutput.Close()
+
 	// check if a sub command wants to return a specific exit code
 	var cmdErr *cmdutils.Error
 	if errors.As(err, &cmdErr) {
@@ -129,7 +133,36 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	c.command.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf(`Config file (default "%s")`, configPath))
 	c.command.PersistentFlags().StringVar(&logFile, "log", logPath, "Log file")
 
+	ch := &cmdutils.Helper[T]{
+		Config: c.config,
+	}
+
 	cobra.OnInitialize(func() {
+		ch.SetDebug(debug)
+
+		ch.Printer = printer.NewPrinter(format)
+
+		if strings.TrimSpace(logFile) != "" {
+			logOutput, err = os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+			if err != nil {
+				switch *format {
+				case printer.JSON:
+					_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+				default:
+					_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				}
+
+				return
+			}
+		}
+
+		switch *format {
+		case printer.JSON:
+			ch.Logger = logging.New(logging.Zerolog, "", logOutput)
+		default:
+			ch.Logger = logging.New(logging.Slog, "", logOutput)
+		}
+
 		err := c.initConfig()
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
@@ -159,12 +192,6 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	if err = viper.BindPFlag("debug", c.command.PersistentFlags().Lookup("debug")); err != nil {
 		return err
 	}
-
-	ch := &cmdutils.Helper[T]{
-		Printer: printer.NewPrinter(format),
-		Config:  c.config,
-	}
-	ch.SetDebug(debug)
 
 	c.command.PersistentFlags().BoolVar(&color.NoColor, "no-color", false, "Disable color output")
 	if err = viper.BindPFlag("no-color", c.command.PersistentFlags().Lookup("no-color")); err != nil {
