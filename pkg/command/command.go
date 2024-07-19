@@ -20,11 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/loopholelabs/cmdutils"
@@ -58,10 +60,12 @@ type Command[T config.Config] struct {
 }
 
 var (
-	cfgFile   string
-	logFile   string
-	logOutput = os.Stderr
-	replacer  = strings.NewReplacer("-", "_", ".", "_")
+	cfgFile        string
+	logFile        string
+	logOutput      io.Writer
+	logClosersLock sync.Mutex
+	logClosers     = []func() error{}
+	replacer       = strings.NewReplacer("-", "_", ".", "_")
 )
 
 func New[T config.Config](cli string, short string, long string, noargs bool, version *version.Version[T], newConfig config.New[T], setupCommands []SetupCommand[T]) *Command[T] {
@@ -109,7 +113,11 @@ func (c *Command[T]) Execute(ctx context.Context, commandType CommandType) int {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 	}
 
-	_ = logOutput.Close()
+	logClosersLock.Lock()
+	defer logClosersLock.Unlock()
+	for _, closeLog := range logClosers {
+		_ = closeLog()
+	}
 
 	// check if a sub command wants to return a specific exit code
 	var cmdErr *cmdutils.Error
@@ -165,7 +173,9 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 		ch.Printer = printer.NewPrinter(format)
 
-		if strings.TrimSpace(logFile) != "" {
+		if strings.TrimSpace(logFile) == "" {
+			logOutput = os.Stderr
+		} else {
 			if err := os.MkdirAll(filepath.Dir(logFile), 0700); err != nil {
 				switch *format {
 				case printer.JSON:
@@ -177,7 +187,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 				os.Exit(cmdutils.FatalErrExitCode)
 			}
 
-			logOutput, err = os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0700)
+			fileLogOutput, err := os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0700)
 			if err != nil {
 				switch *format {
 				case printer.JSON:
@@ -187,6 +197,16 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 				}
 
 				os.Exit(cmdutils.FatalErrExitCode)
+			}
+
+			logClosersLock.Lock()
+			defer logClosersLock.Unlock()
+			logClosers = append(logClosers, fileLogOutput.Close)
+
+			if ch.Debug() {
+				logOutput = io.MultiWriter(fileLogOutput, os.Stderr)
+			} else {
+				logOutput = fileLogOutput
 			}
 		}
 
