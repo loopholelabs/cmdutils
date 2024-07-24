@@ -30,8 +30,8 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
-	"github.com/lensesio/tableprinter"
 	"github.com/mattn/go-isatty"
+	"gopkg.in/yaml.v3"
 )
 
 var IsTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
@@ -180,7 +180,9 @@ func (p *Printer) PrintResource(v interface{}) error {
 	switch *p.format {
 	case Human:
 		var b strings.Builder
-		tableprinter.Print(&b, v)
+		if err := yaml.NewEncoder(&b).Encode(v); err != nil {
+			return err
+		}
 		_, _ = fmt.Fprintln(out, b.String())
 		return nil
 	case JSON:
