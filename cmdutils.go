@@ -18,10 +18,12 @@ package cmdutils
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/loopholelabs/cmdutils/pkg/printer"
+	"github.com/loopholelabs/logging/types"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 // Helper is passed to every single command and is used by individual
@@ -32,6 +34,9 @@ type Helper[T config.Config] struct {
 
 	// Printer is used to print output of a command to stdout.
 	Printer *printer.Printer
+
+	// Logger is used to provide structured logging for a command.
+	Logger types.Logger
 
 	// debug defines the debug mode
 	debug *bool
