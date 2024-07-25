@@ -29,6 +29,7 @@ type Config interface {
 	Validate() error
 	DefaultConfigDir() (string, error)
 	DefaultConfigFile() string
+	DefaultLogDir() (string, error)
 	DefaultLogFile() string
 	SetConfigFile(configFile string)
 	GetConfigFile() string
