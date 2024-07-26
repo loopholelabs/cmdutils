@@ -21,18 +21,76 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
-	"github.com/gocarina/gocsv"
-	"github.com/lensesio/tableprinter"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/mattn/go-isatty"
-	"io"
-	"os"
-	"strings"
-	"time"
+	"gopkg.in/yaml.v3"
 )
+
+var (
+	errInputNotASliceOfStructs = errors.New("input is not a slice of structs")
+	errInputNotASlice          = errors.New("input is not a slice")
+	errElementNotASlice        = errors.New("element is not a slice")
+)
+
+// structToTable converts a slice of structs into a tabular representation
+func structToTable(data interface{}) ([][]string, error) {
+	val := reflect.ValueOf(data)
+
+	if val.Kind() != reflect.Slice {
+		return nil, errors.Join(errInputNotASliceOfStructs, errInputNotASlice)
+	}
+
+	var headers []string
+	elemType := val.Type().Elem()
+
+	if elemType.Kind() != reflect.Struct {
+		return nil, errors.Join(errInputNotASliceOfStructs, errElementNotASlice)
+	}
+
+	for i := 0; i < elemType.NumField(); i++ {
+		field := elemType.Field(i)
+		fieldName := field.Tag.Get("json")
+		if fieldName == "" {
+			fieldName = field.Name
+		} else {
+			// Remove `omitEmpty` etc. options
+			if idx := strings.Index(fieldName, ","); idx != -1 {
+				fieldName = fieldName[:idx]
+			}
+		}
+		headers = append(headers, fieldName)
+	}
+
+	result := [][]string{headers}
+
+	for i := 0; i < val.Len(); i++ {
+		elem := val.Index(i)
+		values := make([]string, elem.NumField())
+		for j := 0; j < elem.NumField(); j++ {
+			fieldValue := elem.Field(j).Interface()
+			fieldValueStr, err := yaml.Marshal(fieldValue)
+			if err != nil {
+				return nil, err
+			}
+
+			// Remove trailing newline from YAML output since we add it ourselves when printing
+			values[j] = strings.TrimSuffix(string(fieldValueStr), "\n")
+		}
+		result = append(result, values)
+	}
+
+	return result, nil
+}
 
 var IsTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
@@ -44,7 +102,6 @@ const (
 	// a single line, depending on the resource implementation.
 	Human Format = iota
 	JSON
-	CSV
 )
 
 // NewFormatValue is used to define a flag that can be used to define a custom
@@ -60,8 +117,6 @@ func (f *Format) String() string {
 		return "human"
 	case JSON:
 		return "json"
-	case CSV:
-		return "csv"
 	}
 
 	return "unknown format"
@@ -74,11 +129,9 @@ func (f *Format) Set(s string) error {
 		v = Human
 	case "json":
 		v = JSON
-	case "csv":
-		v = CSV
 	default:
 		return fmt.Errorf("failed to parse Format: %q. Valid values: %+v",
-			s, []string{"human", "json", "csv"})
+			s, []string{"human", "json"})
 	}
 
 	*f = v
@@ -146,7 +199,7 @@ func (p *Printer) PrintProgress(message string) func() {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(p.Out()))
 	s.Suffix = fmt.Sprintf(" %s", message)
 
-	_ = s.Color("bold", "green")
+	_ = s.Color("bold", "magenta")
 	s.Start()
 	return func() {
 		s.Stop()
@@ -184,27 +237,44 @@ func (p *Printer) PrintResource(v interface{}) error {
 
 	switch *p.format {
 	case Human:
-		var b strings.Builder
-		tableprinter.Print(&b, v)
-		_, _ = fmt.Fprintln(out, b.String())
+		var b string
+		result, err := structToTable(v)
+		if err == nil {
+			t := table.NewWriter()
+			if !color.NoColor {
+				t.SetStyle(table.StyleColoredBlackOnMagentaWhite)
+			}
+
+			for i, line := range result {
+				row := make(table.Row, len(line))
+				for i, l := range line {
+					row[i] = l
+				}
+
+				if i == 0 {
+					t.AppendHeader(row)
+				} else {
+					t.AppendRow(row)
+				}
+			}
+
+			b = t.Render()
+		} else if errors.Is(err, errInputNotASliceOfStructs) {
+			s, err := yaml.Marshal(v)
+			if err != nil {
+				return err
+			}
+
+			// Remove trailing newline from YAML output since we add it ourselves when printing
+			b = strings.TrimSuffix(string(s), "\n")
+		} else {
+			return err
+		}
+
+		_, _ = fmt.Fprintln(out, b)
 		return nil
 	case JSON:
 		return p.PrintJSON(v)
-	case CSV:
-		type csvvaluer interface {
-			MarshalCSVValue() interface{}
-		}
-
-		if c, ok := v.(csvvaluer); ok {
-			v = c.MarshalCSVValue()
-		}
-
-		buf, err := gocsv.MarshalString(v)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintln(out, buf)
-		return nil
 	}
 
 	return fmt.Errorf("unknown printer.Format: %T", *p.format)
