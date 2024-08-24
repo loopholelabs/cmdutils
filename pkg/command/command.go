@@ -64,7 +64,7 @@ var (
 	logFile        string
 	logOutput      io.Writer
 	logClosersLock sync.Mutex
-	logClosers     = []func() error{}
+	logClosers     []func() error
 	replacer       = strings.NewReplacer("-", "_", ".", "_")
 )
 
@@ -212,9 +212,9 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 		switch *format {
 		case printer.JSON:
-			ch.Logger = logging.New(logging.Zerolog, "", logOutput)
+			ch.Logger = logging.New(logging.Zerolog, strings.ToLower(c.cli), logOutput)
 		default:
-			ch.Logger = logging.New(logging.Slog, "", logOutput)
+			ch.Logger = logging.New(logging.Slog, strings.ToLower(c.cli), logOutput)
 		}
 
 		if ch.Debug() {
