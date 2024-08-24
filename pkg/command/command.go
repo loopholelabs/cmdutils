@@ -41,10 +41,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-type CommandType int
+type Type int
 
 const (
-	Interactive CommandType = iota
+	Interactive Type = iota
 	Noninteractive
 )
 
@@ -64,7 +64,7 @@ var (
 	logFile        string
 	logOutput      io.Writer
 	logClosersLock sync.Mutex
-	logClosers     = []func() error{}
+	logClosers     []func() error
 	replacer       = strings.NewReplacer("-", "_", ".", "_")
 )
 
@@ -87,7 +87,7 @@ func New[T config.Config](cli string, short string, long string, noargs bool, ve
 	}
 }
 
-func (c *Command[T]) Execute(ctx context.Context, commandType CommandType) int {
+func (c *Command[T]) Execute(ctx context.Context, commandType Type) int {
 	var format printer.Format
 	var debug bool
 
@@ -130,7 +130,7 @@ func (c *Command[T]) Execute(ctx context.Context, commandType CommandType) int {
 
 // runCmd adds all child commands to the root command, sets flags
 // appropriately, and runs the root command.
-func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool, commandType CommandType) error {
+func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool, commandType Type) error {
 	c.config = c.newConfig()
 
 	configDir, err := c.config.DefaultConfigDir()
@@ -212,9 +212,9 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 		switch *format {
 		case printer.JSON:
-			ch.Logger = logging.New(logging.Zerolog, "", logOutput)
+			ch.Logger = logging.New(logging.Zerolog, strings.ToLower(c.cli), logOutput)
 		default:
-			ch.Logger = logging.New(logging.Slog, "", logOutput)
+			ch.Logger = logging.New(logging.Slog, strings.ToLower(c.cli), logOutput)
 		}
 
 		if ch.Debug() {
