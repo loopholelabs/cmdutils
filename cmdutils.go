@@ -1,18 +1,4 @@
-/*
-	Copyright 2022 Loophole Labs
-
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
-
-		   http://www.apache.org/licenses/LICENSE-2.0
-
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
-*/
+// SPDX-License-Identifier: Apache-2.0
 
 package cmdutils
 
@@ -20,10 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
+	"github.com/loopholelabs/logging/types"
+
 	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/loopholelabs/cmdutils/pkg/printer"
-	"github.com/loopholelabs/logging/types"
-	"github.com/spf13/cobra"
 )
 
 // Helper is passed to every single command and is used by individual
@@ -36,7 +24,7 @@ type Helper[T config.Config] struct {
 	Printer *printer.Printer
 
 	// Logger is used to provide structured logging for a command.
-	Logger types.Logger
+	Logger types.RootLogger
 
 	// debug defines the debug mode
 	debug *bool
