@@ -9,7 +9,7 @@ require (
 	github.com/briandowns/spinner v1.23.1
 	github.com/fatih/color v1.17.0
 	github.com/jedib0t/go-pretty/v6 v6.5.9
-	github.com/loopholelabs/logging v0.2.5
+	github.com/loopholelabs/logging v0.3.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.8.1
