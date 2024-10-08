@@ -206,7 +206,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		}
 
 		if ch.Debug() {
-			ch.Logger.SetLevel(types.TraceLevel)
+			ch.Logger.SetLevel(types.DebugLevel)
 		} else {
 			ch.Logger.SetLevel(types.InfoLevel)
 		}
