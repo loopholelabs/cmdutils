@@ -45,6 +45,15 @@ type Command[T config.Config] struct {
 	newConfig     config.New[T]
 	config        T
 	setupCommands []SetupCommand[T]
+
+	format   printer.Format
+	debug    bool
+	logLevel types.Level
+
+	// The following io.Writer values should be used when outputting text. They
+	// default to os.Stdout and os.Stderr but may be changed during tests.
+	stdout io.Writer
+	stderr io.Writer
 }
 
 var (
@@ -72,33 +81,32 @@ func New[T config.Config](cli string, short string, long string, noargs bool, ve
 		version:       version,
 		newConfig:     newConfig,
 		setupCommands: setupCommands,
+		stdout:        os.Stdout,
+		stderr:        os.Stderr,
 	}
 }
 
 func (c *Command[T]) Execute(ctx context.Context, commandType Type) int {
-	var format printer.Format
-	var debug bool
-
 	devEnv := fmt.Sprintf("%s_DISABLE_DEV_WARNING", strings.ToUpper(replacer.Replace(c.cli)))
 	devWarning := fmt.Sprintf("!! WARNING: You are using a self-compiled binary which is not officially supported.\n!! To dismiss this warning, set %s=true\n\n", devEnv)
 
 	if _, ok := os.LookupEnv(devEnv); !ok {
 		if c.version.GitCommit() == "" || c.version.GoVersion() == "" || c.version.BuildDate() == "" || c.version.Version() == "" || c.version.Platform() == "" {
-			_, _ = fmt.Fprintf(os.Stderr, devWarning)
+			_, _ = fmt.Fprintf(c.stderr, devWarning)
 		}
 	}
 
-	err := c.runCmd(ctx, &format, &debug, commandType)
+	err := c.runCmd(ctx, commandType)
 	if err == nil {
 		return 0
 	}
 
 	// print any user specific messages first
-	switch format {
+	switch c.format {
 	case printer.JSON:
-		_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+		_, _ = fmt.Fprintf(c.stderr, `{"error": "%s"}`, err)
 	default:
-		_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		_, _ = fmt.Fprintf(c.stderr, "Error: %s\n", err)
 	}
 
 	logClosersLock.Lock()
@@ -118,7 +126,7 @@ func (c *Command[T]) Execute(ctx context.Context, commandType Type) int {
 
 // runCmd adds all child commands to the root command, sets flags
 // appropriately, and runs the root command.
-func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *bool, commandType Type) error {
+func (c *Command[T]) runCmd(ctx context.Context, commandType Type) error {
 	c.config = c.newConfig()
 
 	configDir, err := c.config.DefaultConfigDir()
@@ -147,29 +155,29 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 	cobra.OnInitialize(func() {
 		err := c.initConfig()
 		if err != nil {
-			switch *format {
+			switch c.format {
 			case printer.JSON:
-				_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+				_, _ = fmt.Fprintf(c.stderr, `{"error": "%s"}`, err)
 			default:
-				_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				_, _ = fmt.Fprintf(c.stderr, "Error: %s\n", err)
 			}
 
 			os.Exit(cmdutils.FatalErrExitCode)
 		}
 
-		ch.SetDebug(debug)
+		ch.SetDebug(&c.debug)
 
-		ch.Printer = printer.NewPrinter(format)
+		ch.Printer = printer.NewPrinter(&c.format)
 
 		if strings.TrimSpace(logFile) == "" {
-			logOutput = os.Stderr
+			logOutput = c.stderr
 		} else {
 			if err := os.MkdirAll(filepath.Dir(logFile), 0700); err != nil {
-				switch *format {
+				switch c.format {
 				case printer.JSON:
-					_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+					_, _ = fmt.Fprintf(c.stderr, `{"error": "%s"}`, err)
 				default:
-					_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+					_, _ = fmt.Fprintf(c.stderr, "Error: %s\n", err)
 				}
 
 				os.Exit(cmdutils.FatalErrExitCode)
@@ -177,11 +185,11 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 			fileLogOutput, err := os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0700)
 			if err != nil {
-				switch *format {
+				switch c.format {
 				case printer.JSON:
-					_, _ = fmt.Fprintf(os.Stderr, `{"error": "%s"}`, err)
+					_, _ = fmt.Fprintf(c.stderr, `{"error": "%s"}`, err)
 				default:
-					_, _ = fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+					_, _ = fmt.Fprintf(c.stderr, "Error: %s\n", err)
 				}
 
 				os.Exit(cmdutils.FatalErrExitCode)
@@ -192,24 +200,19 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 			logClosers = append(logClosers, fileLogOutput.Close)
 
 			if ch.Debug() {
-				logOutput = io.MultiWriter(fileLogOutput, os.Stderr)
+				logOutput = io.MultiWriter(fileLogOutput, c.stderr)
 			} else {
 				logOutput = fileLogOutput
 			}
 		}
 
-		switch *format {
+		switch c.format {
 		case printer.JSON:
 			ch.Logger = logging.New(logging.Zerolog, strings.ToLower(c.cli), logOutput)
 		default:
 			ch.Logger = logging.New(logging.Slog, strings.ToLower(c.cli), logOutput)
 		}
-
-		if ch.Debug() {
-			ch.Logger.SetLevel(types.TraceLevel)
-		} else {
-			ch.Logger.SetLevel(types.InfoLevel)
-		}
+		ch.Logger.SetLevel(c.logLevel)
 	})
 
 	c.command.SilenceUsage = true
@@ -222,7 +225,7 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 
 	c.config.RootPersistentFlags(c.command.PersistentFlags())
 
-	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, format), "format", "f", "Show output in a specific format. Possible values: [human, json]")
+	c.command.PersistentFlags().VarP(printer.NewFormatValue(printer.Human, &c.format), "format", "f", "Show output in a specific format. Possible values: [human, json]")
 	if err = viper.BindPFlag("format", c.command.PersistentFlags().Lookup("format")); err != nil {
 		return err
 	}
@@ -230,10 +233,19 @@ func (c *Command[T]) runCmd(ctx context.Context, format *printer.Format, debug *
 		return []string{"human", "json"}, cobra.ShellCompDirectiveDefault
 	})
 
-	c.command.PersistentFlags().BoolVar(debug, "debug", false, "Enable debug mode")
+	c.command.PersistentFlags().BoolVar(&c.debug, "debug", false, "Enable debug mode")
 	if err = viper.BindPFlag("debug", c.command.PersistentFlags().Lookup("debug")); err != nil {
 		return err
 	}
+
+	c.logLevel = types.InfoLevel
+	c.command.PersistentFlags().VarP(&c.logLevel, "log-level", "", "")
+	if err = viper.BindPFlag("log-level", c.command.PersistentFlags().Lookup("debug")); err != nil {
+		return err
+	}
+	_ = c.command.RegisterFlagCompletionFunc("log-level", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"fatal", "error", "warn", "info", "debug", "trace"}, cobra.ShellCompDirectiveDefault
+	})
 
 	c.command.PersistentFlags().BoolVar(&color.NoColor, "no-color", false, "Disable color output")
 	if err = viper.BindPFlag("no-color", c.command.PersistentFlags().Lookup("no-color")); err != nil {
