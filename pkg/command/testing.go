@@ -62,7 +62,6 @@ func (h *TestCommandHarness) setupCommandRun(rootCmd *cobra.Command, ch *cmdutil
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&ch.Config.MyConfig, "my-config", "", "A sample test configuration")
 
 	rootCmd.AddCommand(cmd)
 }
@@ -88,9 +87,6 @@ type TestConfig struct {
 	Format  string
 	Debug   bool
 	NoColor bool `mapstructure:"no-color"`
-
-	// Custom configuration values.
-	MyConfig string `mapstructure:"my-config"`
 }
 
 func NewTestConfigFn(cfgFile string, logFile string) func() *TestConfig {
