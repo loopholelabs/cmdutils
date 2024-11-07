@@ -239,8 +239,8 @@ func (c *Command[T]) runCmd(ctx context.Context, commandType Type) error {
 	}
 
 	c.logLevel = types.InfoLevel
-	c.command.PersistentFlags().VarP(&c.logLevel, "log-level", "", "")
-	if err = viper.BindPFlag("log-level", c.command.PersistentFlags().Lookup("debug")); err != nil {
+	c.command.PersistentFlags().VarP(&c.logLevel, "log-level", "", "Specifies the level of log verbosity. Possible values: [fatal, error, warn, info, debug, trace]")
+	if err = viper.BindPFlag("log-level", c.command.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
 	_ = c.command.RegisterFlagCompletionFunc("log-level", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
